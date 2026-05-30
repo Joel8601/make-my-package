@@ -4,34 +4,37 @@ This folder contains ultra-detailed, beginner-friendly packaging guides for Wind
 
 ## How to Use
 
-1. Pick your target OS folder.
-2. Follow the guides in order (for example, EXE before MSI).
-3. Use the checklists at the end of each guide to confirm release readiness.
+1. **Pick your target OS**: Choose the folder corresponding to your target platform.
+2. **Follow guides in order**: For example, on Windows, complete the EXE guide before moving to MSI or MSIX.
+3. **Automate with CI/CD**: Once your local builds work, commit the pre-configured [GitHub Actions Workflows](../.github/workflows/README.md) to automate the packaging, validation, and signing steps on every push and version release.
+4. **Use the checklists**: Verify final release readiness using the checklists at the end of each guide.
+
+---
 
 ## Windows Guides (Packaging Order)
 
-- Start here: [Python/windows/python-to-exe.md](windows/python-to-exe.md)
-- MSI installer: [Python/windows/python-to-msi.md](windows/python-to-msi.md)
-- MSIX package: [Python/windows/python-to-msix.md](windows/python-to-msix.md)
+- **Step 1: Standalone Executable** — [python-to-exe.md](windows/python-to-exe.md)
+- **Step 2 (Option A): WiX MSI Installer** — [python-to-msi.md](windows/python-to-msi.md)
+- **Step 2 (Option B): Modern MSIX Package** — [python-to-msix.md](windows/python-to-msix.md)
+
+---
 
 ## Linux Guides
 
-- Debian/Ubuntu: [Python/linux/python-to-deb.md](linux/python-to-deb.md)
-- RHEL/Fedora/CentOS: [Python/linux/python-to-rpm.md](linux/python-to-rpm.md)
+- **Debian / Ubuntu (DEB)** — [python-to-deb.md](linux/python-to-deb.md)
+- **Red Hat / Fedora / CentOS (RPM)** — [python-to-rpm.md](linux/python-to-rpm.md)
+
+---
 
 ## Android Guides
 
-- Android APK: [Python/android/python-to-apk.md](android/python-to-apk.md)
+- **Mobile APK (Kivy/Briefcase)** — [python-to-apk.md](android/python-to-apk.md)
+
+---
 
 ## How It Works (High-Level)
 
-- Build step: Convert your Python app into a distributable output (usually a folder-based build).
-- Packaging step: Wrap that output into an installer or package format.
-- Validation step: Install on a clean machine, run tests, and fix any missing files.
-- Release step: Sign artifacts and publish with versioned names and hashes.
-
-## Tips
-
-- Use a clean virtual environment for builds.
-- Prefer folder-based builds for installers (MSI/MSIX).
-- Keep a consistent versioning scheme across releases.
+- **Build**: Convert your Python code into an executable output (usually a folder-based build).
+- **Package**: Wrap that output into native platform formats (installers or packages).
+- **Validate**: Install on a clean machine, run tests, and check that all dynamic dependencies are loaded.
+- **Sign & Release**: Code-sign your package with a valid developer certificate or key to build system trust and bypass browser/OS security warnings.

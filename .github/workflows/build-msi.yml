@@ -1,0 +1,98 @@
+name: Build Windows MSI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-msi:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies and PyInstaller
+        shell: bash
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Install WiX Toolset v3
+        shell: bash
+        run: |
+          # Chocolatey is pre-installed on GitHub-hosted Windows runners
+          choco install wixtoolset -y
+          # Locate the WiX bin directory dynamically in case the patch version varies
+          WIX_BIN=$(ls -d "/c/Program Files (x86)/WiX Toolset"*/bin 2>/dev/null | head -1)
+          echo "$WIX_BIN" >> "$GITHUB_PATH"
+
+      - name: Extract version from git tag
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=0.0.0-dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build EXE with PyInstaller
+        shell: bash
+        run: |
+          pyinstaller MyApp.spec --noconfirm
+
+      - name: Inject version into installer.wxs
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          sed -i "s/Version=\"[0-9][^\"]*\"/Version=\"${VERSION}\"/" packaging/msi/installer.wxs
+
+      - name: Harvest dependency files with heat
+        shell: bash
+        run: |
+          heat dir dist/MyApp/_internal \
+            -cg InternalComponentGroup \
+            -dr INSTALLDIR \
+            -gg -g1 -sfrag -sreg -srd \
+            -out packaging/msi/HarvestedFiles.wxs
+
+      - name: Compile WiX source files with candle
+        shell: bash
+        run: |
+          candle packaging/msi/installer.wxs packaging/msi/HarvestedFiles.wxs
+
+      - name: Link object files into MSI with light
+        shell: bash
+        run: |
+          light installer.wixobj HarvestedFiles.wixobj \
+            -o MyApp.msi \
+            -ext WixUIExtension
+
+      - name: Sign MSI (tag pushes only)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$CERTIFICATE_BASE64" | base64 --decode > certificate.pfx
+          signtool sign /fd SHA256 /f certificate.pfx /p "$CERTIFICATE_PASSWORD" \
+            /tr http://timestamp.digicert.com /td SHA256 \
+            MyApp.msi
+          rm certificate.pfx
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyApp-msi-${{ github.ref_name }}
+          path: MyApp.msi
+          retention-days: 30

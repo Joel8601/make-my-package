@@ -1,12 +1,22 @@
-# Python to EXE (Windows) - Ultra-Detailed Beginner Guide
+# Python to EXE (Windows) — Ultra-Detailed Beginner Guide
 
 This guide walks you through creating a Windows EXE from a Python app using PyInstaller. It is written for beginners and includes detailed steps, expected results, and troubleshooting. It covers both folder-based EXE (recommended for installers) and single-file EXE.
+
+## When to Use This Format
+
+Use the EXE format when you just need a runnable file — no installer, no Start Menu entry, no uninstaller. It is the simplest distribution method and the required first step for both MSI and MSIX packaging.
+
+## Time Estimate
+
+~15 minutes for a first build (longer if you need to troubleshoot missing dependencies).
+
+> **ARM64 note:** This guide produces x86_64 EXEs only. To target ARM64 Windows (increasingly common on Surface devices and Copilot+ PCs), you must run PyInstaller on an ARM64 Windows machine — PyInstaller cannot cross-compile between architectures. GitHub Actions provides `windows-11-arm` hosted runners for this purpose.
 
 ## Related Guides (Packaging Order)
 
 - Start here for all Windows packaging
-- Next step for MSI: See [Python/windows/python-to-msi.md](Python/windows/python-to-msi.md)
-- Optional next step for MSIX: See [Python/windows/python-to-msix.md](Python/windows/python-to-msix.md)
+- Next step for MSI: See [python-to-msi.md](python-to-msi.md)
+- Optional next step for MSIX: See [python-to-msix.md](python-to-msix.md)
 
 ## Purpose
 
@@ -49,7 +59,7 @@ This guide shows how to turn a Python app into a Windows EXE using PyInstaller, 
 
 ## Recommended Project Layout
 
-```
+```text
 project/
   main.py
   src/
@@ -70,6 +80,7 @@ Expected result: `Get-Location` shows your project folder.
 
 ## Step 2: Create and activate a virtual environment
 
+<!-- Creates an isolated Python environment and activates it for this session -->
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -81,6 +92,7 @@ Expected result: your prompt starts with `(.venv)`.
 
 ## Step 3: Install dependencies and PyInstaller
 
+<!-- Installs your app's dependencies and the PyInstaller build tool -->
 ```powershell
 pip install -r requirements.txt
 pip install pyinstaller
@@ -90,6 +102,7 @@ Expected result: PyInstaller installs without errors.
 
 If you want reproducible installs, pin dependencies:
 
+<!-- Pins all dependency versions to a lock file for consistent builds -->
 ```powershell
 pip install pip-tools
 pip-compile --generate-hashes -o requirements.lock
@@ -100,6 +113,7 @@ pip-sync requirements.lock
 
 The spec file is a build recipe you can edit later.
 
+<!-- Generates a MyApp.spec file that controls how PyInstaller builds your app -->
 ```powershell
 pyinstaller --name MyApp --specpath . --noconfirm .\main.py
 ```
@@ -108,7 +122,7 @@ Expected result: `MyApp.spec` appears in your project folder.
 
 ![Spec file creation with PyInstaller](../../images/windows/specfile%20creation%20with%20pyinstaller.png)
 
-Note: Spec files are version-specific. If you see an error like `unexpected keyword argument 'optimize'`, regenerate the spec with your installed PyInstaller or remove the unsupported field.
+> **Note:** Spec files are version-specific. If you see an error like `unexpected keyword argument 'optimize'`, regenerate the spec with your installed PyInstaller or remove the unsupported field.
 
 ## Step 5: Edit the spec file for data files and imports
 
@@ -132,6 +146,7 @@ datas=[('images', 'images')]
 
 ## Step 6: Build a folder-based EXE (recommended for MSI)
 
+<!-- Builds the EXE into a dist\MyApp folder using the spec file -->
 ```powershell
 pyinstaller MyApp.spec --noconfirm
 ```
@@ -151,6 +166,7 @@ Expected output (two common layouts):
 
 If you want one file, run:
 
+<!-- Packages the entire app into a single standalone EXE file -->
 ```powershell
 pyinstaller --onefile --name MyApp .\main.py
 ```
@@ -183,9 +199,16 @@ Expected result: your EXE shows a custom icon and version in Properties.
 
 ## Step 10: Sign the EXE (production requirement)
 
+> **EV certificate requirement:** Windows SmartScreen builds reputation based on your signing certificate. A standard OV (Organization Validation) certificate will sign the file successfully, but SmartScreen may still show a warning until the EXE accumulates sufficient download history. An EV (Extended Validation) certificate grants immediate SmartScreen reputation and is the recommended choice for production distribution. EV certificates are available from DigiCert, Sectigo, and other trusted CAs.
+
+For a folder-based build, sign the EXE inside the `dist\MyApp\` folder:
+
+<!-- Signs the EXE with a trusted certificate so Windows does not block it -->
 ```powershell
-signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 dist\MyApp.exe
+signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 dist\MyApp\MyApp.exe
 ```
+
+> **Note:** If you built a single-file EXE (Step 7), the path is `dist\MyApp.exe` instead.
 
 Expected result: EXE properties show a valid digital signature.
 
@@ -194,6 +217,103 @@ Expected result: EXE properties show a valid digital signature.
 1. Right-click the EXE and open Properties.
 2. Check the Details tab for version info.
 3. Check the Digital Signatures tab for a valid signature.
+
+## CI/CD with GitHub Actions
+
+Automate EXE builds so every push to `main` produces a fresh artifact and every version tag produces a signed EXE ready to distribute.
+
+Create `.github/workflows/build-exe.yml` with this content:
+
+```yaml
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-exe:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies and PyInstaller
+        shell: bash
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Extract version from git tag
+        id: version
+        shell: bash
+        run: |
+          # Strip leading "v" from the tag name; fall back to 0.0.0-dev on branches
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=0.0.0-dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build EXE with PyInstaller
+        shell: bash
+        run: |
+          pyinstaller MyApp.spec --noconfirm
+
+      - name: Sign EXE (tag pushes only)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          # Decode the base64-encoded PFX certificate stored in GitHub Secrets
+          echo "$CERTIFICATE_BASE64" | base64 --decode > certificate.pfx
+          signtool sign /fd SHA256 /f certificate.pfx /p "$CERTIFICATE_PASSWORD" \
+            /tr http://timestamp.digicert.com /td SHA256 \
+            dist/MyApp/MyApp.exe
+          # Remove the decoded certificate from disk immediately after signing
+          rm certificate.pfx
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyApp-exe-${{ github.ref_name }}
+          path: dist/MyApp/
+          retention-days: 30
+```
+
+### Setting Up Signing Secrets
+
+Add these two secrets to your GitHub repository under Settings → Secrets and variables → Actions:
+
+| Secret name | Value |
+|---|---|
+| `WINDOWS_CERTIFICATE_BASE64` | Your `.pfx` file encoded as base64 |
+| `WINDOWS_CERTIFICATE_PASSWORD` | The password for the `.pfx` file |
+
+Encode your certificate file on Linux or macOS:
+
+```bash
+base64 -w 0 my-certificate.pfx | xclip -selection clipboard
+```
+
+On macOS:
+
+```bash
+base64 -i my-certificate.pfx | pbcopy
+```
+
+> **Note:** Signing runs only on tag pushes (`v*.*.*`). Builds on `main` and pull requests produce unsigned artifacts, which is normal for development builds.
 
 ## Common Issues and Fixes
 
@@ -209,3 +329,8 @@ Expected result: EXE properties show a valid digital signature.
 - All data files are bundled
 - EXE is signed and versioned
 - Build steps are repeatable
+- GitHub Actions workflow committed to `.github/workflows/`
+- Required secrets added to GitHub repository settings
+- Build passes end-to-end on a tag push
+- Signed artifact downloaded from Actions and tested on a clean machine
+- Screenshot placeholders replaced with real screenshots in `images/windows/`

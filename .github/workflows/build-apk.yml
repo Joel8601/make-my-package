@@ -1,0 +1,130 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install system dependencies for Buildozer
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git zip unzip \
+            libffi-dev libssl-dev libbz2-dev liblzma-dev libsqlite3-dev
+
+      - name: Create virtual environment and install Buildozer
+        shell: bash
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install buildozer cython
+
+      - name: Cache Buildozer directory
+        uses: actions/cache@v4
+        with:
+          path: ~/.buildozer
+          # Cache key changes when buildozer.spec changes, forcing a fresh download
+          # of SDK/NDK only when the spec is updated — cuts build time from ~30 to ~5 min
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
+
+      - name: Extract version from git tag
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=1.0.0-dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Inject version into buildozer.spec
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          sed -i "s/^version = .*/version = ${VERSION}/" buildozer.spec
+          # versionCode must be a monotonically increasing integer; use the run number
+          sed -i "s/^# android.numeric_version.*/android.numeric_version = ${{ github.run_number }}/" buildozer.spec
+
+      - name: Build debug APK (branches and pull requests)
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          buildozer -v android debug
+
+      - name: Build release APK (tag pushes only)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          buildozer -v android release
+
+      - name: Sign release APK (tag pushes only)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          # Decode the base64-encoded keystore stored in GitHub Secrets
+          echo "$KEYSTORE_BASE64" | base64 --decode > my-release-key.jks
+          # zipalign must run before signing (Play Store requirement)
+          zipalign -v 4 \
+            bin/MyApp-*-release-unsigned.apk \
+            bin/MyApp-release-aligned.apk
+          apksigner sign \
+            --ks my-release-key.jks \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass "pass:$KEYSTORE_PASSWORD" \
+            --key-pass "pass:$KEY_PASSWORD" \
+            --out bin/MyApp-release-signed.apk \
+            bin/MyApp-release-aligned.apk
+          apksigner verify bin/MyApp-release-signed.apk
+          # Remove the decoded keystore from disk immediately
+          rm my-release-key.jks
+
+      - name: Upload debug APK artifact (branches and pull requests)
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyApp-apk-${{ github.ref_name }}
+          path: bin/*.apk
+          retention-days: 30
+
+      - name: Upload signed release APK artifact (tag pushes only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyApp-apk-${{ github.ref_name }}
+          path: bin/MyApp-release-signed.apk
+          retention-days: 30

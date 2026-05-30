@@ -1,0 +1,76 @@
+name: Build Linux RPM
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-rpm:
+    runs-on: ubuntu-22.04
+    # Fedora container provides dnf and the RPM toolchain natively.
+    # Ubuntu does not ship dnf; the container avoids needing a separate runner type.
+    container: fedora:latest
+
+    steps:
+      - name: Install RPM build tools and git
+        run: |
+          dnf install -y \
+            rpm-build rpmdevtools rpmlint gcc make \
+            python3 python3-pip git
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create RPM build tree
+        run: rpmdev-setuptree
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          python3 -m venv .venv
+          . .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build PyInstaller output
+        run: |
+          . .venv/bin/activate
+          pyinstaller --name MyApp ./main.py
+
+      - name: Extract version from git tag
+        id: version
+        run: |
+          # RPM versions cannot contain hyphens — replace any with underscores
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            echo "VERSION=${VERSION//-/_}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=1.0.0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Copy spec file and inject version
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          cp packaging/rpm/myapp.spec ~/rpmbuild/SPECS/myapp.spec
+          sed -i "s/^Version:.*/Version:        ${VERSION}/" ~/rpmbuild/SPECS/myapp.spec
+          # Export workspace path so the spec's %global project_dir resolves correctly
+          echo "PROJECT_DIR=${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
+
+      - name: Build binary RPM
+        run: |
+          # -bb builds binary RPM only; -ba would also build a source RPM requiring GPG
+          rpmbuild -bb ~/rpmbuild/SPECS/myapp.spec
+
+      - name: Validate with rpmlint
+        run: |
+          rpmlint ~/rpmbuild/RPMS/x86_64/myapp-*.rpm
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyApp-rpm-${{ github.ref_name }}
+          path: ~/rpmbuild/RPMS/x86_64/*.rpm
+          retention-days: 30
