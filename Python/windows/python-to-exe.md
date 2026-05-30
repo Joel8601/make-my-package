@@ -8,6 +8,15 @@ This guide walks you through creating a Windows EXE from a Python app using PyIn
 - Next step for MSI: See [Python/windows/python-to-msi.md](Python/windows/python-to-msi.md)
 - Optional next step for MSIX: See [Python/windows/python-to-msix.md](Python/windows/python-to-msix.md)
 
+## Purpose
+
+This guide shows how to turn a Python app into a Windows EXE using PyInstaller, with repeatable steps, versioned output, and clear troubleshooting.
+
+## Who Benefits
+
+- Developers distributing Windows desktop apps
+- Teams that need consistent, repeatable EXE builds
+
 ## What You Will Build
 
 - A Windows EXE that runs your Python app without needing Python installed
@@ -18,11 +27,13 @@ This guide walks you through creating a Windows EXE from a Python app using PyIn
 - Beginners packaging their first Python app for Windows
 - Teams that want a repeatable, readable build process
 
-## Glossary (Quick)
+## Concepts (Quick)
 
 - EXE: Windows executable file
 - PyInstaller: tool that bundles Python + your code into an EXE
 - Spec file: a build recipe PyInstaller uses
+- `dist/`: output folder for final artifacts
+- `build/`: intermediate build files (safe to delete)
 
 ## Prerequisites
 
@@ -30,6 +41,11 @@ This guide walks you through creating a Windows EXE from a Python app using PyIn
 - Python 3.10 or newer installed
 - Your app runs locally with `python main.py`
 - A terminal (PowerShell)
+
+### Optional (Recommended)
+
+- Git (for versioned builds)
+- Windows SDK (for `signtool`)
 
 ## Recommended Project Layout
 
@@ -72,6 +88,14 @@ pip install pyinstaller
 
 Expected result: PyInstaller installs without errors.
 
+If you want reproducible installs, pin dependencies:
+
+```powershell
+pip install pip-tools
+pip-compile --generate-hashes -o requirements.lock
+pip-sync requirements.lock
+```
+
 ## Step 4: Create a spec file (recommended)
 
 The spec file is a build recipe you can edit later.
@@ -99,6 +123,12 @@ Explanation:
 
 - `datas` bundles non-code files like images or JSON
 - `hiddenimports` fixes modules that PyInstaller misses
+
+Example with an `images` folder:
+
+```python
+datas=[('images', 'images')]
+```
 
 ## Step 6: Build a folder-based EXE (recommended for MSI)
 
@@ -159,11 +189,18 @@ signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 dist\MyApp
 
 Expected result: EXE properties show a valid digital signature.
 
+## Step 11: Verify version and signature
+
+1. Right-click the EXE and open Properties.
+2. Check the Details tab for version info.
+3. Check the Digital Signatures tab for a valid signature.
+
 ## Common Issues and Fixes
 
 - EXE crashes on start: add missing modules to `hiddenimports`
 - Data file missing: add to `datas` and use correct relative paths
 - Antivirus warning: avoid UPX and sign the EXE
+- `MyApp.spec` errors: regenerate spec with your installed PyInstaller
 
 ## Final Checklist
 

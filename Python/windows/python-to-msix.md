@@ -7,6 +7,15 @@ This guide packages a Python app into MSIX using beginner-friendly steps. It inc
 - Required first: Build the EXE in [Python/windows/python-to-exe.md](Python/windows/python-to-exe.md)
 - If you already have an MSI workflow: See [Python/windows/python-to-msi.md](Python/windows/python-to-msi.md)
 
+## Purpose
+
+This guide shows how to package a Windows EXE into an MSIX package with a proper identity, icons, and signing.
+
+## Who Benefits
+
+- Developers who want a modern Windows installer format
+- Teams that need clean install/uninstall and update support
+
 ## What You Will Build
 
 - A signed `.msix` package ready to install on Windows 10/11
@@ -22,6 +31,34 @@ This guide packages a Python app into MSIX using beginner-friendly steps. It inc
 - A folder-based EXE build (recommended)
 - MSIX Packaging Tool (GUI) or Windows SDK tools (`makeappx`, `signtool`)
 - A code signing certificate for production
+
+### Install MSIX Packaging Tool (GUI)
+
+1. Open Microsoft Store.
+2. Search for "MSIX Packaging Tool" and install it.
+3. Launch it once to ensure it starts correctly.
+
+### Install Windows SDK (CLI tools)
+
+1. Download Windows SDK from Microsoft.
+2. During install, select "Windows SDK for Desktop C++ Apps".
+3. Confirm `makeappx.exe` and `signtool.exe` are available on PATH.
+
+Verify in PowerShell:
+
+```powershell
+makeappx /?
+signtool /?
+```
+
+Expected result: each command prints help text.
+
+## Concepts (Quick)
+
+- `AppxManifest.xml` defines identity, version, and logos
+- Publisher name must match the signing certificate
+- `makeappx` builds the package from a folder
+- `signtool` signs the package
 
 ## Step 1: Build a folder-based EXE
 
@@ -53,6 +90,46 @@ dist\MyApp\
 Your `AppxManifest.xml` defines identity, version, and display name. Use a template from Microsoft docs and update it for your app.
 
 Screenshot placeholder: AppxManifest.xml open in editor
+
+### Example Minimal Manifest (Beginner-Friendly)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+   IgnorableNamespaces="uap">
+
+   <Identity Name="MyCompany.MyApp" Publisher="CN=YourCompany" Version="1.0.0.0" />
+   <Properties>
+      <DisplayName>MyApp</DisplayName>
+      <PublisherDisplayName>YourCompany</PublisherDisplayName>
+      <Logo>Assets\StoreLogo.png</Logo>
+   </Properties>
+
+   <Resources>
+      <Resource Language="en-us" />
+   </Resources>
+
+   <Applications>
+      <Application Id="App" Executable="MyApp.exe" EntryPoint="Windows.FullTrustApplication">
+         <uap:VisualElements
+            DisplayName="MyApp"
+            Description="MyApp"
+            BackgroundColor="transparent"
+            Square44x44Logo="Assets\Square44x44Logo.png"
+            Square150x150Logo="Assets\Square150x150Logo.png" />
+      </Application>
+   </Applications>
+
+</Package>
+```
+
+Update:
+
+- `Name`: a unique package name
+- `Publisher`: must match your signing certificate
+- `Version`: increase on every release
 
 ## Option A: MSIX Packaging Tool (GUI)
 
@@ -97,11 +174,29 @@ Create a `.appinstaller` file that points to your `.msix` URL and version. Host 
 
 Expected result: Windows can auto-update the app.
 
+### Example AppInstaller File
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<AppInstaller
+   xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2"
+   Uri="https://example.com/MyApp.appinstaller"
+   Version="1.0.0.0">
+
+   <MainPackage
+      Name="MyCompany.MyApp"
+      Publisher="CN=YourCompany"
+      Version="1.0.0.0"
+      Uri="https://example.com/MyApp.msix" />
+</AppInstaller>
+```
+
 ## Common Issues and Fixes
 
 - Install fails: publisher name does not match signing certificate
 - Missing icons: check the `Assets` folder paths in the manifest
 - App crashes: ensure `_internal` files are included
+- MSIX Packaging Tool fails: verify it can access your EXE output folder
 
 ## Final Checklist
 
