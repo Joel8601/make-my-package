@@ -2,6 +2,12 @@
 
 This guide walks you through creating a Windows EXE from a Python app using PyInstaller. It is written for beginners and includes detailed steps, expected results, and troubleshooting. It covers both folder-based EXE (recommended for installers) and single-file EXE.
 
+## Related Guides (Packaging Order)
+
+- Start here for all Windows packaging
+- Next step for MSI: See [Python/windows/python-to-msi.md](Python/windows/python-to-msi.md)
+- Optional next step for MSIX: See [Python/windows/python-to-msix.md](Python/windows/python-to-msix.md)
+
 ## What You Will Build
 
 - A Windows EXE that runs your Python app without needing Python installed

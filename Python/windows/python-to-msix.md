@@ -2,6 +2,11 @@
 
 This guide packages a Python app into MSIX using beginner-friendly steps. It includes a GUI path and a CLI path, plus explanations and expected results.
 
+## Related Guides (Packaging Order)
+
+- Required first: Build the EXE in [Python/windows/python-to-exe.md](Python/windows/python-to-exe.md)
+- If you already have an MSI workflow: See [Python/windows/python-to-msi.md](Python/windows/python-to-msi.md)
+
 ## What You Will Build
 
 - A signed `.msix` package ready to install on Windows 10/11

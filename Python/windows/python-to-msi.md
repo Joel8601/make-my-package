@@ -2,6 +2,11 @@
 
 This guide converts a folder-based PyInstaller build into an MSI using WiX Toolset. It is written for beginners and includes small, safe steps with explanations and expected results.
 
+## Related Guides (Packaging Order)
+
+- Required first: Build the EXE in [Python/windows/python-to-exe.md](Python/windows/python-to-exe.md)
+- Optional next step for MSIX: See [Python/windows/python-to-msix.md](Python/windows/python-to-msix.md)
+
 ## What You Will Build
 
 - A Windows MSI installer that installs your app into Program Files

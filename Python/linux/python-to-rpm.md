@@ -2,6 +2,10 @@
 
 This guide shows how to build a `.rpm` package using a spec file. It is written for beginners and includes step-by-step explanations.
 
+## Related Guides
+
+- DEB alternative for Debian/Ubuntu: See [Python/linux/python-to-deb.md](Python/linux/python-to-deb.md)
+
 ## What You Will Build
 
 - An `.rpm` package that installs your app under `/usr/lib/myapp`

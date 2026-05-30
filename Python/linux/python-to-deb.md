@@ -2,6 +2,10 @@
 
 This guide shows how to create a `.deb` package the standard Debian way. It is written for beginners and uses simple files and steps.
 
+## Related Guides
+
+- RPM alternative for RHEL/Fedora: See [Python/linux/python-to-rpm.md](Python/linux/python-to-rpm.md)
+
 ## What You Will Build
 
 - A `.deb` package that installs your app under `/usr/lib/myapp`
