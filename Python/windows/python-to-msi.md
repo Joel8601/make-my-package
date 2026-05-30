@@ -32,10 +32,14 @@ MSI installers install folders, not single-file EXEs. Build a folder-based EXE:
 pyinstaller --name MyApp .\main.py
 ```
 
-Expected output:
+Expected output (two common layouts):
 
-- `dist\MyApp\MyApp.exe`
-- `dist\MyApp\_internal\` folder
+- Layout A (newer PyInstaller):
+  - `dist\MyApp\MyApp.exe`
+  - `dist\MyApp\_internal\` folder
+- Layout B (older PyInstaller):
+  - `dist\MyApp\MyApp.exe`
+  - dependency files next to the EXE
 
 Screenshot placeholder: dist folder showing MyApp.exe and _internal
 
@@ -109,10 +113,16 @@ Screenshot placeholder: installer.wxs open in editor
 
 ## Step 5: Harvest the dependency folder
 
-Run `heat` to include all files from `_internal`:
+Run `heat` to include all dependency files:
 
 ```powershell
 heat dir dist\MyApp\_internal -cg InternalComponentGroup -dr INSTALLDIR -out packaging\msi\HarvestedFiles.wxs
+```
+
+If you do not have an `_internal` folder, point `heat` at `dist\MyApp` instead:
+
+```powershell
+heat dir dist\MyApp -cg InternalComponentGroup -dr INSTALLDIR -out packaging\msi\HarvestedFiles.wxs
 ```
 
 Expected result: `HarvestedFiles.wxs` is created.

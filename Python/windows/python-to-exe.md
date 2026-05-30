@@ -50,7 +50,7 @@ Open PowerShell and `cd` into your project folder.
 
 Expected result: `Get-Location` shows your project folder.
 
-Screenshot placeholder: PowerShell open in project folder
+![PowerShell open in project folder](../../images/windows/searchandopenpowershell.png)
 
 ## Step 2: Create and activate a virtual environment
 
@@ -61,7 +61,7 @@ python -m venv .venv
 
 Expected result: your prompt starts with `(.venv)`.
 
-Screenshot placeholder: venv activated in PowerShell
+![Venv activated in PowerShell](../../images/windows/venv%20activated%20in%20PowerShell.png)
 
 ## Step 3: Install dependencies and PyInstaller
 
@@ -82,7 +82,9 @@ pyinstaller --name MyApp --specpath . --noconfirm .\main.py
 
 Expected result: `MyApp.spec` appears in your project folder.
 
-Screenshot placeholder: spec file visible in folder
+![Spec file creation with PyInstaller](../../images/windows/specfile%20creation%20with%20pyinstaller.png)
+
+Note: Spec files are version-specific. If you see an error like `unexpected keyword argument 'optimize'`, regenerate the spec with your installed PyInstaller or remove the unsupported field.
 
 ## Step 5: Edit the spec file for data files and imports
 
@@ -104,12 +106,16 @@ Explanation:
 pyinstaller MyApp.spec --noconfirm
 ```
 
-Expected output:
+Expected output (two common layouts):
 
-- `dist\MyApp\MyApp.exe`
-- `dist\MyApp\_internal\` folder
+- Layout A (newer PyInstaller):
+  - `dist\MyApp\MyApp.exe`
+  - `dist\MyApp\_internal\` folder
+- Layout B (older PyInstaller):
+  - `dist\MyApp\MyApp.exe`
+  - dependency files next to the EXE (for example, `python38.dll`, `.pyd` files)
 
-Screenshot placeholder: dist folder showing MyApp.exe and _internal
+![Dist folder showing MyApp.exe and _internal](../../images/windows/dist%20folder%20showing%20MyApp.exe%20and%20_internal.png)
 
 ## Step 7: Build a single-file EXE (optional)
 
@@ -143,7 +149,7 @@ Expected result: your EXE shows a custom icon and version in Properties.
 - Run it and test key features
 - Verify bundled files load correctly
 
-Screenshot placeholder: EXE running on a clean VM
+![EXE running on a clean VM](../../images/windows/EXE%20running%20on%20a%20clean%20VM.png)
 
 ## Step 10: Sign the EXE (production requirement)
 
