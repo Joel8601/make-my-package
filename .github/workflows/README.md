@@ -4,14 +4,15 @@ This folder contains six automated GitHub Actions workflows designed to package 
 
 ## Workflow Summary
 
-| Workflow File | Target Format | Runner OS | Build Toolchain | Release Output |
-|---|---|---|---|---|
-| [`build-exe.yml`](build-exe.yml) | Windows Standalone EXE | `windows-latest` | PyInstaller | `dist/MyApp/` folder |
-| [`build-msi.yml`](build-msi.yml) | Windows MSI Installer | `windows-latest` | WiX Toolset v3 + PyInstaller | `MyApp.msi` installer |
-| [`build-msix.yml`](build-msix.yml) | Windows MSIX Package | `windows-latest` | makeappx + PyInstaller | `MyApp.msix` package |
-| [`build-deb.yml`](build-deb.yml) | Debian/Ubuntu DEB | `ubuntu-22.04` | dpkg-buildpackage + lintian | `*.deb` package |
-| [`build-rpm.yml`](build-rpm.yml) | RHEL/Fedora/CentOS RPM | `ubuntu-22.04` (Fedora container) | rpmbuild + rpmlint | `*.rpm` package |
-| [`build-apk.yml`](build-apk.yml) | Android APK | `ubuntu-22.04` | Buildozer + JDK 17 | Signed/aligned release APK |
+| Workflow File | Target Format | Runner OS | Build Toolchain | Release Output | Setup Steps |
+|---|---|---|---|---|---|
+| [`build-exe.yml`](build-exe.yml) | Windows Standalone EXE | `windows-latest` | PyInstaller | `dist/MyApp/` folder | [Configure Steps ➔](#step-2-customize-the-yaml-files-for-your-project) |
+| [`build-msi.yml`](build-msi.yml) | Windows MSI Installer | `windows-latest` | WiX Toolset v3 + PyInstaller | `MyApp.msi` installer | [Configure Steps ➔](#step-2-customize-the-yaml-files-for-your-project) |
+| [`build-msix.yml`](build-msix.yml) | Windows MSIX Package | `windows-latest` | makeappx + PyInstaller | `MyApp.msix` package | [Configure Steps ➔](#step-2-customize-the-yaml-files-for-your-project) |
+| [`build-deb.yml`](build-deb.yml) | Debian/Ubuntu DEB | `ubuntu-22.04` | dpkg-buildpackage + lintian | `*.deb` package | [Configure Steps ➔](#step-2-customize-the-yaml-files-for-your-project) |
+| [`build-rpm.yml`](build-rpm.yml) | RHEL/Fedora/CentOS RPM | `ubuntu-22.04` (Fedora container) | rpmbuild + rpmlint | `*.rpm` package | [Configure Steps ➔](#step-2-customize-the-yaml-files-for-your-project) |
+| [`build-apk.yml`](build-apk.yml) | Android APK | `ubuntu-22.04` | Buildozer + JDK 17 | Signed/aligned release APK | [Configure Steps ➔](#step-2-customize-the-yaml-files-for-your-project) |
+
 
 ---
 
