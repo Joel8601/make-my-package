@@ -1,6 +1,6 @@
 # Python Packaging Guides
 
-This folder contains ultra-detailed, beginner-friendly packaging guides for Windows and Linux. Use these guides to turn a Python app into installable formats like EXE, MSI, MSIX, DEB, and RPM.
+This folder contains ultra-detailed, beginner-friendly packaging guides for Windows, Linux, and Android. Use these guides to turn a Python app into installable formats like EXE, MSI, MSIX, DEB, RPM, and APK.
 
 ## How to Use
 
@@ -18,6 +18,10 @@ This folder contains ultra-detailed, beginner-friendly packaging guides for Wind
 
 - Debian/Ubuntu: [Python/linux/python-to-deb.md](linux/python-to-deb.md)
 - RHEL/Fedora/CentOS: [Python/linux/python-to-rpm.md](linux/python-to-rpm.md)
+
+## Android Guides
+
+- Android APK: [Python/android/python-to-apk.md](android/python-to-apk.md)
 
 ## How It Works (High-Level)
 
