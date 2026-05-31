@@ -2,6 +2,8 @@
 
 This repository contains ultra-detailed, beginner-friendly guides and automated CI/CD pipelines for packaging applications into common distribution formats on Windows, Linux, and Android.
 
+Start it ! If you LIKE IT!
+
 ## Quick Start
 
 Start with the Python guide folder:
