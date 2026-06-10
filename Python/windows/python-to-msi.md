@@ -200,7 +200,7 @@ Create `installer.wxs` and paste this template:
 
 > **Why MajorUpgrade:** Without the `MajorUpgrade` element, installing a new version of your MSI will not remove the old one. Users end up with two entries in Add/Remove Programs. The `MajorUpgrade` element tells Windows Installer to uninstall the old version automatically before installing the new one.
 
-![PowerShell open in project folder](../../images/windows/install-wxs-editor.png)
+![PowerShell open in project folder](../../images/windows/installer-wxs-editor.png)
 
 ## Step 5: Harvest the dependency folder
 
