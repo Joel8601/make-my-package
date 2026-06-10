@@ -142,7 +142,7 @@ Create `installer.wxs` and paste this template:
            and not C:\Program Files (x86) for 64-bit apps -->
       <Directory Id="ProgramFiles64Folder">
         <Directory Id="INSTALLDIR" Name="MyApp">
-          <Component Id="MainExecutable" Guid="*"> # "*" auto generates the Guid
+          <Component Id="MainExecutable" Guid="*"> <!-- "*" auto generates the Guid-->
             <File Id="AppExe" Source="dist\app\app.exe" KeyPath="yes" />
           </Component>
 
@@ -159,7 +159,7 @@ Create `installer.wxs` and paste this template:
 
       <Directory Id="ProgramMenuFolder">
         <Directory Id="StartMenuFolder" Name="MyApp">
-          <Component Id="StartMenuShortcut" Guid="*"> # "*" auto generates the Guid
+          <Component Id="StartMenuShortcut" Guid="*"> <!-- "*" auto generates the Guid-->
             <Shortcut Id="StartMenuShortcut" Name="MyApp" Description="Launch MyApp" Target="[INSTALLDIR]app.exe" WorkingDirectory="INSTALLDIR" Advertise="no" />
             <!-- RemoveFolder on a custom StartMenu subfolder is correct and required
                  so the subfolder is cleaned up on uninstall -->
@@ -173,7 +173,7 @@ Create `installer.wxs` and paste this template:
         <!-- Note: RemoveFolder is intentionally absent here.
              DesktopFolder is a standard system folder — never remove it on uninstall.
              Including RemoveFolder on DesktopFolder causes ICE64 validation errors. -->
-        <Component Id="DesktopShortcut" Guid="*"> # "*" auto generates the Guid
+        <Component Id="DesktopShortcut" Guid="*"> <!-- "*" auto generates the Guid-->
           <Shortcut Id="DesktopShortcut" Name="MyApp" Description="Launch MyApp from Desktop" Target="[INSTALLDIR]app.exe" WorkingDirectory="INSTALLDIR" Advertise="no" Icon="AppIcon" />
           <RegistryValue Root="HKCU" Key="Software\MyApp" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
         </Component>
