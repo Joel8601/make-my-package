@@ -1,5 +1,11 @@
 name: Build Windows MSI
 
+# ------------------------------------------------------------------ #
+#  ADAPT: Replace every occurrence of the following placeholders:     #
+#    MyApp      → your app name  (e.g. MyCoolApp)                     #
+#    app.spec   → your PyInstaller spec file name                     #
+# ------------------------------------------------------------------ #
+
 on:
   push:
     branches: [main]
@@ -12,9 +18,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # ── 1. Source code ───────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ── 2. Python ────────────────────────────────────────────────
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -26,15 +34,21 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      # ── 3. WiX Toolset v3 ────────────────────────────────────────
+      #  Chocolatey is pre-installed on all GitHub-hosted Windows runners.
+      #  The bin path is discovered dynamically so it works even if the
+      #  WiX patch version changes (e.g. 3.11 → 3.14).
       - name: Install WiX Toolset v3
         shell: bash
         run: |
-          # Chocolatey is pre-installed on GitHub-hosted Windows runners
           choco install wixtoolset -y
-          # Locate the WiX bin directory dynamically in case the patch version varies
           WIX_BIN=$(ls -d "/c/Program Files (x86)/WiX Toolset"*/bin 2>/dev/null | head -1)
           echo "$WIX_BIN" >> "$GITHUB_PATH"
 
+      # ── 4. Version ───────────────────────────────────────────────
+      #  On a version tag (v1.2.3) the MSI version becomes 1.2.3.
+      #  On any branch push / PR it defaults to 1.0.0 so WiX never
+      #  rejects a non-numeric pre-release string.
       - name: Extract version from git tag
         id: version
         shell: bash
@@ -42,34 +56,98 @@ jobs:
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           else
-            echo "VERSION=0.0.0-dev" >> "$GITHUB_OUTPUT"
+            echo "VERSION=1.0.0" >> "$GITHUB_OUTPUT"
           fi
 
+      # ── 5. Build EXE ─────────────────────────────────────────────
+      #  ADAPT: change app.spec to your spec file name.
+      #  Output: dist/app/app.exe + dist/app/_internal/ (PyInstaller >= 6)
+      #                          or dist/app/           (PyInstaller < 6)
       - name: Build EXE with PyInstaller
         shell: bash
         run: |
-          pyinstaller MyApp.spec --noconfirm
+          pyinstaller app.spec --noconfirm
 
-      - name: Inject version into installer.wxs
+      # ── 6. Detect PyInstaller output layout ──────────────────────
+      #  PyInstaller >= 6.0  →  dependencies in dist/app/_internal
+      #  PyInstaller <  6.0  →  dependencies flat in dist/app
+      #  ADAPT: replace "app" in both paths if your spec name= differs.
+      - name: Detect PyInstaller output layout
+        id: layout
         shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          sed -i "s/Version=\"[0-9][^\"]*\"/Version=\"${VERSION}\"/" packaging/msi/installer.wxs
+          if [ -d "dist/app/_internal" ]; then
+            echo "INTERNAL_DIR=dist/app/_internal" >> "$GITHUB_OUTPUT"
+            echo "Detected PyInstaller >= 6 layout: dist/app/_internal"
+          else
+            echo "INTERNAL_DIR=dist/app" >> "$GITHUB_OUTPUT"
+            echo "Detected PyInstaller < 6 layout: dist/app"
+          fi
 
+      # ── 7. Inject version into installer.wxs ─────────────────────
+      #  installer.wxs must contain the literal token:
+      #    Version="DEPLOY_VERSION_TOKEN"
+      #  This step replaces it with the real version at build time.
+      #  Fails loudly if the token is missing — prevents silent bad builds.
+      - name: Inject version into installer.wxs
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $file    = "packaging/msi/installer.wxs"
+          $content = Get-Content $file -Raw
+          if ($content -notmatch 'Version="DEPLOY_VERSION_TOKEN"') {
+            Write-Error "Version token not found in $file — add Version=`"DEPLOY_VERSION_TOKEN`" to the <Product> element."
+            exit 1
+          }
+          $content = $content.Replace('Version="DEPLOY_VERSION_TOKEN"', "Version=`"$version`"")
+          Set-Content $file $content
+          Write-Host "Injected version $version into $file"
+
+      # ── 8. Harvest dependency files ──────────────────────────────
+      #  heat scans the _internal (or flat) folder and auto-generates
+      #  HarvestedFiles.wxs. This file is NOT committed to the repo —
+      #  it is regenerated fresh on every CI run.
+      #
+      #  -dr INSTALLDIR places all harvested deps flat into the install
+      #  directory alongside app.exe, matching the manual build process.
+      #
+      #  Flags:
+      #    -cg InternalComponentGroup  component group ref in installer.wxs
+      #    -dr INSTALLDIR              install destination directory
+      #    -gg                         auto-generate GUIDs per component
+      #    -g1                         one component per file
+      #    -sfrag                      suppress Fragment wrapper
+      #    -sreg                       suppress registry harvesting
+      #    -srd                        suppress root directory component
+      #    -var var.SourceDir          use $(var.SourceDir)\file in paths
+      #                                resolved by -dSourceDir in candle
       - name: Harvest dependency files with heat
         shell: bash
         run: |
-          heat dir dist/MyApp/_internal \
+          heat dir "${{ steps.layout.outputs.INTERNAL_DIR }}" \
             -cg InternalComponentGroup \
             -dr INSTALLDIR \
             -gg -g1 -sfrag -sreg -srd \
+            -var var.SourceDir \
             -out packaging/msi/HarvestedFiles.wxs
 
+      # ── 9. Compile WiX sources ───────────────────────────────────
+      #  -arch x64   marks all components as 64-bit (fixes ICE80 error)
+      #  -dSourceDir resolves the $(var.SourceDir) paths emitted by heat
+      #              and must point to the same folder passed to heat
       - name: Compile WiX source files with candle
         shell: bash
         run: |
-          candle packaging/msi/installer.wxs packaging/msi/HarvestedFiles.wxs
+          candle \
+            -arch x64 \
+            -dSourceDir="${{ steps.layout.outputs.INTERNAL_DIR }}" \
+            packaging/msi/installer.wxs \
+            packaging/msi/HarvestedFiles.wxs
 
+      # ── 10. Link into MSI ────────────────────────────────────────
+      #  light links both .wixobj files into the final .msi.
+      #  WixUIExtension provides the built-in installer UI dialogs.
+      #  ADAPT: change MyApp.msi to your app name.
       - name: Link object files into MSI with light
         shell: bash
         run: |
@@ -77,6 +155,12 @@ jobs:
             -o MyApp.msi \
             -ext WixUIExtension
 
+      # ── 11. Sign MSI (tag pushes only) ───────────────────────────
+      #  Runs only when a version tag is pushed (v*.*.*).
+      #  Required secrets (repo Settings → Secrets → Actions):
+      #    WINDOWS_CERTIFICATE_BASE64   base64-encoded .pfx file
+      #    WINDOWS_CERTIFICATE_PASSWORD password for the .pfx
+      #  ADAPT: change MyApp.msi to your app name.
       - name: Sign MSI (tag pushes only)
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
@@ -90,6 +174,10 @@ jobs:
             MyApp.msi
           rm certificate.pfx
 
+      # ── 12. Upload artifact ───────────────────────────────────────
+      #  The .msi is uploaded as a workflow artifact visible in the
+      #  Actions Summary. Retained for 30 days.
+      #  ADAPT: change MyApp in both name and path.
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
         with:
